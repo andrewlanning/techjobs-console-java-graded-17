@@ -1,152 +1,136 @@
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
-
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 /**
  * Created by LaunchCode
  */
-public class JobData {
+public class TechJobs {
 
-    private static final String DATA_FILE = "src/main/resources/job_data.csv";
-    private static boolean isDataLoaded = false;
+    static Scanner in = new Scanner(System.in);
 
-    private static ArrayList<HashMap<String, String>> allJobs;
+    public static void main (String[] args) {
 
-    /**
-     * Fetch list of all values from loaded data,
-     * without duplicates, for a given column.
-     *
-     * @param field The column to retrieve values from
-     * @return List of all of the values of the given field
-     */
-    public static ArrayList<String> findAll(String field) {
+        // Initialize our field map with key/name pairs
+        HashMap<String, String> columnChoices = new HashMap<>();
+        columnChoices.put("core competency", "Skill");
+        columnChoices.put("employer", "Employer");
+        columnChoices.put("location", "Location");
+        columnChoices.put("position type", "Position Type");
+        columnChoices.put("all", "All");
 
-        // load data, if not already loaded
-        loadData();
+        // Top-level menu options
+        HashMap<String, String> actionChoices = new HashMap<>();
+        actionChoices.put("search", "Search");
+        actionChoices.put("list", "List");
 
-        ArrayList<String> values = new ArrayList<>();
+        System.out.println("Welcome to LaunchCode's TechJobs App!");
 
-        for (HashMap<String, String> row : allJobs) {
-            String aValue = row.get(field);
+        // Allow the user to search until they manually quit
+        while (true) {
 
-            if (!values.contains(aValue)) {
-                values.add(aValue);
-            }
-        }
+            String actionChoice = getUserSelection("View jobs by (type 'x' to quit):", actionChoices);
 
-        return values;
-    }
+            if (actionChoice == null) {
+                break;
+            } else if (actionChoice.equals("list")) {
 
-    public static ArrayList<HashMap<String, String>> findAll() {
+                String columnChoice = getUserSelection("List", columnChoices);
 
-        // load data, if not already loaded
-        loadData();
+                if (columnChoice.equals("all")) {
+                    printJobs(JobData.findAll());
+                } else {
 
-        return allJobs;
-    }
+                    ArrayList<String> results = JobData.findAll(columnChoice);
 
-    /**
-     * Returns results of search the jobs data by key/value, using
-     * inclusion of the search term.
-     *
-     * For example, searching for employer "Enterprise" will include results
-     * with "Enterprise Holdings, Inc".
-     *
-     * @param column   Column that should be searched.
-     * @param value Value of teh field to search for
-     * @return List of all jobs matching the criteria
-     */
-    public static ArrayList<HashMap<String, String>> findByColumnAndValue(String column, String value) {
+                    System.out.println("\n*** All " + columnChoices.get(columnChoice) + " Values ***");
 
-        // load data, if not already loaded
-        loadData();
+                    // Print list of skills, employers, etc
+                    for (String item : results) {
+                        System.out.println(item);
+                    }
+                }
 
-        ArrayList<HashMap<String, String>> jobs = new ArrayList<>();
+            } else { // choice is "search"
 
-        for (HashMap<String, String> row : allJobs) {
+                // How does the user want to search (e.g. by skill or employer)
+                String searchField = getUserSelection("Search by:", columnChoices);
 
-            String aValue = row.get(column);
+                // What is their search term?
+                System.out.println("\nSearch term:");
+                String searchTerm = in.nextLine();
 
-            if (aValue.toLowerCase().contains(value.toLowerCase())) {
-                jobs.add(row);
-            }
-        }
-
-        return jobs;
-    }
-
-    /**
-     * Search all columns for the given term
-     *
-     * @param value The search term to look for
-     * @return      List of all jobs with at least one field containing the value
-     */
-    public static ArrayList<HashMap<String, String>> findByValue(String value) {
-        // load data, if not already loaded
-        loadData();
-
-        ArrayList<HashMap<String, String>> jobs = new ArrayList<>();
-
-        for (HashMap<String, String> row : allJobs) {
-            for (Map.Entry<String, String> entry : row.entrySet()) {
-                String aValue = entry.getValue();
-                if (aValue != null && aValue.toLowerCase().contains(value.toLowerCase())) {
-                    jobs.add(row);
-                    break;
+                if (searchField.equals("all")) {
+                    printJobs(JobData.findByValue(searchTerm));
+                } else {
+                    printJobs(JobData.findByColumnAndValue(searchField, searchTerm));
                 }
             }
         }
-        return jobs;
     }
 
-    /**
-     * Read in data from a CSV file and store it in a list
-     */
-    private static void loadData() {
+    // ﻿Returns the key of the selected item from the choices Dictionary
+    private static String getUserSelection(String menuHeader, HashMap<String, String> choices) {
 
-        // Only load data once
-        if (isDataLoaded) {
-            return;
+        int choiceIdx = -1;
+        Boolean validChoice = false;
+        String[] choiceKeys = new String[choices.size()];
+
+        // Put the choices in an ordered structure so we can
+        // associate an integer with each one
+        int i = 0;
+        for (String choiceKey : choices.keySet()) {
+            choiceKeys[i] = choiceKey;
+            i++;
         }
 
-        try {
+        do {
 
-            // Open the CSV file and set up pull out column header info and records
-            Reader in = new FileReader(DATA_FILE);
-            CSVParser parser = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(in);
-            List<CSVRecord> records = parser.getRecords();
-            Integer numberOfColumns = records.get(0).size();
-            String[] headers = parser.getHeaderMap().keySet().toArray(new String[numberOfColumns]);
+            System.out.println("\n" + menuHeader);
 
-            allJobs = new ArrayList<>();
-
-            // Put the records into a more friendly format
-            for (CSVRecord record : records) {
-                HashMap<String, String> newJob = new HashMap<>();
-
-                for (String headerLabel : headers) {
-                    newJob.put(headerLabel, record.get(headerLabel));
-                }
-
-                allJobs.add(newJob);
+            // Print available choices
+            for (int j = 0; j < choiceKeys.length; j++) {
+                System.out.println("" + j + " - " + choices.get(choiceKeys[j]));
             }
 
-            // flag the data as loaded, so we don't do it twice
-            isDataLoaded = true;
+            if (in.hasNextInt()) {
+                choiceIdx = in.nextInt();
+                in.nextLine();
+            } else {
+                String line = in.nextLine();
+                boolean shouldQuit = line.equals("x");
+                if (shouldQuit) {
+                    return null;
+                }
+            }
 
-        } catch (IOException e) {
-            System.out.println("Failed to load job data");
-            e.printStackTrace();
-        }
+            // Validate user's input
+            if (choiceIdx < 0 || choiceIdx >= choiceKeys.length) {
+                System.out.println("Invalid choice. Try again.");
+            } else {
+                validChoice = true;
+            }
+
+        } while(!validChoice);
+
+        return choiceKeys[choiceIdx];
     }
 
+    // Print a list of jobs
+    private static void printJobs(ArrayList<HashMap<String, String>> someJobs) {
+        if (someJobs.isEmpty()) {
+            System.out.println("No Results");
+        } else {
+            for (HashMap<String, String> job : someJobs) {
+                System.out.println("\n*****");
+                for (Map.Entry<String, String> entry : job.entrySet()) {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    System.out.println(key + ": " + value);
+                }
+                System.out.println("*****");
+            }
+        }
+    }
 }
